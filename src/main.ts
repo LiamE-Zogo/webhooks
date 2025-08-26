@@ -1,5 +1,8 @@
 import { Application } from "jsr:@oak/oak";
 import router from "./api/routes/index.ts";
+import { initialize } from "./db/index.ts";
+
+const db = await initialize();
 
 const api = new Application();
 

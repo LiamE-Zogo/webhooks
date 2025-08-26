@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS webhook (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,  
+  send_url VARCHAR(1024) NOT NULL,
+  attempt_count TINYINT NOT NULL DEFAULT 0,
+  next_attempt_time DATETIME DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS errors (
+  id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,  
+  webhook_id INT NOT NULL,
+  error_text VARCHAR(1024) NOT NULL,
+  error_code SMALLINT NOT NULL,
+  FOREIGN KEY (webhook_id) REFERENCES webhook(id)
+);
