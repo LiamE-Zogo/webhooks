@@ -64,59 +64,62 @@ async function applyMigrations() {
   await client.connect(client_options);
 
   try {
-    await client.execute("START TRANSACTION");
+    await client.transaction(async (conn) => {
+      // Create sql migrations table
+      await conn.execute(`
+      CREATE TABLE IF NOT EXISTS _sql_migrations (
+        id INT PRIMARY KEY,
+        applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+      `);
 
-    // Create sql migrations table
-    await client.execute(`
-    CREATE TABLE IF NOT EXISTS _sql_migrations (
-      id INT PRIMARY KEY,
-      applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-    `);
+      // Get existing migrations
+      const existing_migrations = (await conn.query(
+        "SELECT * FROM _sql_migrations"
+      )) as SqlMigration[];
 
-    // Lock table to ensure no other instances try to apply migrations
-    await client.execute("LOCK TABLES _sql_migrations WRITE");
-
-    // Get existing migrations
-    const existing_migrations = (await client.query(
-      "SELECT * FROM _sql_migrations"
-    )) as SqlMigration[];
-
-    const pending_migrations: string[] = [];
-    for await (const file of Deno.readDir("./db/migrations")) {
-      if (file.isFile) {
-        console.log("checking migration:", file.name);
-        const migration_id = parseInt(file.name.replace(".sql", ""));
-        if (!existing_migrations.find((m) => m.id === migration_id)) {
-          pending_migrations.push(file.name);
+      const pending_migrations: string[] = [];
+      for await (const file of Deno.readDir("./db/migrations")) {
+        if (file.isFile) {
+          console.log("checking migration:", file.name);
+          const migration_id = parseInt(file.name.replace(".sql", ""));
+          if (!existing_migrations.find((m) => m.id === migration_id)) {
+            pending_migrations.push(file.name);
+          }
         }
       }
-    }
 
-    const sorted_pending_migrations = pending_migrations.sort((a, b) => {
-      const a_id = parseInt(a.replace(".sql", ""));
-      const b_id = parseInt(b.replace(".sql", ""));
-      return a_id - b_id;
+      const sorted_pending_migrations = pending_migrations.sort((a, b) => {
+        const a_id = parseInt(a.replace(".sql", ""));
+        const b_id = parseInt(b.replace(".sql", ""));
+        return a_id - b_id;
+      });
+
+      for await (const migration of sorted_pending_migrations) {
+        console.log("applying migration:", migration);
+        const migration_id = parseInt(migration.replace(".sql", ""));
+
+        const filePath = `./db/migrations/${migration}`;
+        const content = await Deno.readTextFile(filePath);
+
+        // Split content into individual statements and execute each one
+        const statements = content
+          .split(";")
+          .map((stmt) => stmt.trim())
+          .filter((stmt) => stmt.length > 0);
+
+        for (const statement of statements) {
+          await conn.execute(statement);
+        }
+
+        // Only track the migration if it applied successfully
+        await conn.execute(
+          `INSERT INTO _sql_migrations (id) VALUES (${migration_id})`
+        );
+      }
     });
-
-    for await (const migration of sorted_pending_migrations) {
-      console.log("applying migration:", migration);
-      const migration_id = parseInt(migration.replace(".sql", ""));
-
-      await client.execute(
-        `INSERT INTO _sql_migrations (id) VALUES (${migration_id})`
-      );
-      const filePath = `./db/migrations/${migration}`;
-      const content = await Deno.readTextFile(filePath);
-      await client.execute(content);
-    }
-
-    await client.execute("UNLOCK TABLES");
-    await client.execute("COMMIT");
   } catch (err: unknown) {
     console.log(err);
-    await client.execute("UNLOCK TABLES");
-    await client.execute("ROLLBACK");
     // TODO: Notify of failure to apply migrations.
     // This should be immediate and dealt with ASAP as nothing will work without this
   }
