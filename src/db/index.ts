@@ -83,7 +83,7 @@ async function applyMigrations() {
     )) as SqlMigration[];
 
     const pending_migrations: string[] = [];
-    for await (const file of Deno.readDir("./src/db/migrations")) {
+    for await (const file of Deno.readDir("./db/migrations")) {
       if (file.isFile) {
         console.log("checking migration:", file.name);
         const migration_id = parseInt(file.name.replace(".sql", ""));
@@ -106,7 +106,7 @@ async function applyMigrations() {
       await client.execute(
         `INSERT INTO _sql_migrations (id) VALUES (${migration_id})`
       );
-      const filePath = `./src/db/migrations/${migration}`;
+      const filePath = `./db/migrations/${migration}`;
       const content = await Deno.readTextFile(filePath);
       await client.execute(content);
     }
