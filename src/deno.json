@@ -1,0 +1,10 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-read --allow-net --allow-env --watch main.ts ",
+    "build": "docker build -t zapi . --platform linux/amd64"
+  },
+  "imports": {
+    "@oak/oak": "jsr:@oak/oak@^17.1.6",
+    "@std/assert": "jsr:@std/assert@1"
+  }
+}
