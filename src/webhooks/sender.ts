@@ -1,5 +1,37 @@
 import { Client } from "https://deno.land/x/mysql@v2.12.1/mod.ts";
 
+async function sendCallbackNotification(
+  webhook: Webhook, 
+  finalStatus: "success" | "error",
+  runLogData: { response_text: string; response_code: number; response_time: number }
+) {
+  if (!webhook.callback_url) {
+    return; // No callback URL provided
+  }
+
+  try {
+    const callbackData = {
+      webhook_id: webhook.id,
+      original_url: webhook.send_url,
+      final_status: finalStatus,
+      attempt_count: webhook.attempt_count,
+      last_response: runLogData
+    };
+
+    await fetch(webhook.callback_url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(callbackData),
+    });
+
+    console.log(`Callback notification sent for webhook ${webhook.id}`);
+  } catch (error) {
+    console.error(`Failed to send callback notification for webhook ${webhook.id}:`, error);
+  }
+}
+
 interface Webhook {
   id: number;
   send_url: string;
@@ -8,6 +40,7 @@ interface Webhook {
   data: object | null;
   status: "available" | "processing" | "error" | "success";
   processing_id: string | null;
+  callback_url: string | null;
 }
 
 export async function startWebhookSender(dbClient: Client) {
@@ -104,8 +137,21 @@ export async function startWebhookSender(dbClient: Client) {
           requestOptions.body = JSON.stringify(webhook.data);
         }
 
+        const startTime = Date.now();
         const response = await fetch(webhook.send_url, requestOptions);
-        console.log(await response.json());
+        const responseTime = Date.now() - startTime;
+        const responseText = await response.text();
+        
+        console.log(responseText);
+
+        // Log the attempt to run_log
+        await dbClient.execute(
+          `
+          INSERT INTO run_log (webhook_id, response_text, response_code, response_time) 
+          VALUES (?, ?, ?, ?)
+        `,
+          [webhook.id, responseText, response.status, responseTime]
+        );
 
         if (response.ok) {
           // Success - mark as completed and clear processing_id
@@ -119,6 +165,13 @@ export async function startWebhookSender(dbClient: Client) {
             [webhook.id]
           );
 
+          // Send callback notification for successful webhook
+          await sendCallbackNotification(webhook, "success", {
+            response_text: responseText,
+            response_code: response.status,
+            response_time: responseTime
+          });
+
           console.log(`Webhook ${webhook.id} sent successfully`);
         } else {
           // HTTP error - handle as failure
@@ -126,14 +179,15 @@ export async function startWebhookSender(dbClient: Client) {
             dbClient,
             webhook,
             `HTTP ${response.status}: ${response.statusText}`,
-            response.status
+            response.status,
+            responseTime
           );
         }
       } catch (error) {
         // Network or other error
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
-        await handleWebhookFailure(dbClient, webhook, errorMessage, 0);
+        await handleWebhookFailure(dbClient, webhook, errorMessage, 0, 0);
       }
     } catch (error) {
       console.error("Error in webhook sender:", error);
@@ -147,7 +201,8 @@ async function handleWebhookFailure(
   dbClient: Client,
   webhook: Webhook,
   errorText: string,
-  errorCode: number
+  errorCode: number,
+  responseTime: number
 ) {
   console.log(`Webhook ${webhook.id} failed: ${errorText}`);
 
@@ -159,13 +214,13 @@ async function handleWebhookFailure(
   const backoffMultiplier = Math.log(newAttemptCount + 1);
   const delayMinutes = Math.ceil(baseDelayMinutes * backoffMultiplier);
 
-  // Create error record
+  // Log the failed attempt to run_log
   await dbClient.execute(
     `
-    INSERT INTO errors (webhook_id, error_text, error_code) 
-    VALUES (?, ?, ?)
+    INSERT INTO run_log (webhook_id, response_text, response_code, response_time) 
+    VALUES (?, ?, ?, ?)
   `,
-    [webhook.id, errorText, errorCode]
+    [webhook.id, errorText, errorCode, responseTime]
   );
 
   if (newAttemptCount >= 5) {
@@ -180,6 +235,13 @@ async function handleWebhookFailure(
     `,
       [newAttemptCount, webhook.id]
     );
+
+    // Send callback notification for failed webhook
+    await sendCallbackNotification(webhook, "error", {
+      response_text: errorText,
+      response_code: errorCode,
+      response_time: responseTime
+    });
 
     console.log(
       `Webhook ${webhook.id} marked as error after ${newAttemptCount} attempts`
