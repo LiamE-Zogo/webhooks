@@ -1,4 +1,4 @@
-export async function startWebhookWorkers(workerCount: number = 3) {
+export function startWebhookWorkers(workerCount: number = 3) {
   console.log(`Starting ${workerCount} webhook workers...`);
 
   const workers: Worker[] = [];

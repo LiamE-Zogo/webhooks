@@ -2,6 +2,7 @@
   "tasks": {
     "local": "deno run --unsafely-ignore-certificate-errors --allow-read --allow-net --unstable-otel --allow-env --env-file=local.env --watch main.ts",
     "dev": "deno run --unsafely-ignore-certificate-errors --allow-read --allow-net --unstable-otel --allow-env --env-file=dev.env --watch main.ts",
+    "prod": "deno run --unsafely-ignore-certificate-errors --allow-read --allow-net --unstable-otel --allow-env --env-file=prod.env --watch main.ts",
     "build": "docker build -t zapi . --platform linux/amd64"
   },
   "imports": {
