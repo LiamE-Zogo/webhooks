@@ -21,7 +21,7 @@ export default class Database {
 
   private async createPool(poolSize: number = 20) {
     const pool_options = {
-      db: Deno.env.get("DB_NAME") || "webhooks",
+      db: Deno.env.get("DB_NAME") || "webhook_service",
       hostname: Deno.env.get("DB_HOST") || "localhost",
       password: Deno.env.get("DB_PASSWORD") || "password",
       port: parseInt(Deno.env.get("DB_PORT") || "3306"),

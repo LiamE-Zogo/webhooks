@@ -1,1 +1,1 @@
-ALTER TABLE webhooks ADD COLUMN processing_id VARCHAR(255) NULL;
+ALTER TABLE webhooks ADD COLUMN IF NOT EXISTS processing_id VARCHAR(255) NULL;
