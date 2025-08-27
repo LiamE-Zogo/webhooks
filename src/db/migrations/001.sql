@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
   send_url VARCHAR(1024) NOT NULL,
   attempt_count TINYINT NOT NULL DEFAULT 0,
   next_attempt_time DATETIME DEFAULT NOW(),
+  data JSON,
   status ENUM('available', 'processing', 'error', 'success')
 );
 

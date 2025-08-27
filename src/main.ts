@@ -1,8 +1,11 @@
 import { Application } from "jsr:@oak/oak";
 import router from "./api/routes/index.ts";
-import { initialize } from "./db/index.ts";
+import Database from "./db/index.ts";
+import { startWebhookWorkers } from "./webhooks/manager.ts";
 
-const db = await initialize();
+const db = new Database();
+await db.initialize();
+await startWebhookWorkers();
 
 const api = new Application();
 

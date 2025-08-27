@@ -1,0 +1,1 @@
+ALTER TABLE webhooks ADD COLUMN processing_id VARCHAR(255) NULL;
