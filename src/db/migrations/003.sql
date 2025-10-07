@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS run_log (
   webhook_id INT NOT NULL,
   response_text VARCHAR(1024) NOT NULL,
   response_code SMALLINT NOT NULL,
-  response_time SMALLINT NOT NULL
+  response_time SMALLINT NOT NULL,
   FOREIGN KEY (webhook_id) REFERENCES webhooks(id)
 );
 
