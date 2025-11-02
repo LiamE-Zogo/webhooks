@@ -1,0 +1,25 @@
+# Project Configuration
+project_name = "webhooks"
+environment  = "production"
+
+# AWS Configuration
+aws_region  = "us-east-1"
+aws_profile = "pulumi"  # Update this to your AWS profile
+
+# Container Configuration
+container_port = 80
+cpu            = 1024  # 1 vCPU
+memory         = 1024  # 1024 MB
+
+# Auto Scaling Configuration
+min_capacity = 1
+max_capacity = 1
+
+# REQUIRED: ACM Certificate ARN for HTTPS
+# You must provide your own certificate ARN
+certificate_arn = "arn:aws:acm:us-east-1:ACCOUNT_ID:certificate/CERTIFICATE_ID"
+
+# Docker Build Configuration (Optional)
+# docker_build_platform = "linux/amd64"
+# dockerfile_path       = "../src/Dockerfile"
+# docker_context        = "../src"

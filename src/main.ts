@@ -12,4 +12,5 @@ const api = new Application();
 api.use(router.routes());
 api.use(router.allowedMethods());
 
+console.log(`Listening on: ${Number(Deno.env.get("API_PORT")) || 8}`);
 await api.listen({ port: Number(Deno.env.get("API_PORT")) || 80 });
