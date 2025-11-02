@@ -1,9 +1,13 @@
 import { Client } from "https://deno.land/x/mysql@v2.12.1/mod.ts";
 
 async function sendCallbackNotification(
-  webhook: Webhook, 
+  webhook: Webhook,
   finalStatus: "success" | "error",
-  runLogData: { response_text: string; response_code: number; response_time: number }
+  runLogData: {
+    response_text: string;
+    response_code: number;
+    response_time: number;
+  }
 ) {
   if (!webhook.callback_url) {
     return; // No callback URL provided
@@ -15,7 +19,7 @@ async function sendCallbackNotification(
       original_url: webhook.send_url,
       final_status: finalStatus,
       attempt_count: webhook.attempt_count,
-      last_response: runLogData
+      last_response: runLogData,
     };
 
     await fetch(webhook.callback_url, {
@@ -28,7 +32,10 @@ async function sendCallbackNotification(
 
     console.log(`Callback notification sent for webhook ${webhook.id}`);
   } catch (error) {
-    console.error(`Failed to send callback notification for webhook ${webhook.id}:`, error);
+    console.error(
+      `Failed to send callback notification for webhook ${webhook.id}:`,
+      error
+    );
   }
 }
 
@@ -141,7 +148,7 @@ export async function startWebhookSender(dbClient: Client) {
         const response = await fetch(webhook.send_url, requestOptions);
         const responseTime = Date.now() - startTime;
         const responseText = await response.text();
-        
+
         console.log(responseText);
 
         // Log the attempt to run_log
@@ -169,7 +176,7 @@ export async function startWebhookSender(dbClient: Client) {
           await sendCallbackNotification(webhook, "success", {
             response_text: responseText,
             response_code: response.status,
-            response_time: responseTime
+            response_time: responseTime,
           });
 
           console.log(`Webhook ${webhook.id} sent successfully`);
@@ -211,8 +218,8 @@ async function handleWebhookFailure(
   // Calculate next attempt time using logarithmic backoff
   // Base delay of 1 minute, multiplied by log(attempt_count + 1)
   const baseDelayMinutes = 1;
-  const backoffMultiplier = Math.log(newAttemptCount + 1);
-  const delayMinutes = Math.ceil(baseDelayMinutes * backoffMultiplier);
+  const backoffMultiplier = Math.log(newAttemptCount + 1) / 2;
+  const delayMinutes = Math.ceil((backoffMultiplier ^ 2) * baseDelayMinutes);
 
   // Log the failed attempt to run_log
   await dbClient.execute(
@@ -240,7 +247,7 @@ async function handleWebhookFailure(
     await sendCallbackNotification(webhook, "error", {
       response_text: errorText,
       response_code: errorCode,
-      response_time: responseTime
+      response_time: responseTime,
     });
 
     console.log(
