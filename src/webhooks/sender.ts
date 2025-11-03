@@ -218,7 +218,7 @@ async function handleWebhookFailure(
   // Calculate next attempt time using logarithmic backoff
   // Base delay of 1 minute, multiplied by log(attempt_count + 1)
   const baseDelayMinutes = 1;
-  const backoffMultiplier = Math.log(newAttemptCount + 1) / 2;
+  const backoffMultiplier = newAttemptCount / 2;
   const delayMinutes = Math.ceil((backoffMultiplier ^ 2) * baseDelayMinutes);
 
   // Log the failed attempt to run_log
@@ -230,7 +230,7 @@ async function handleWebhookFailure(
     [webhook.id, errorText, errorCode, responseTime]
   );
 
-  if (newAttemptCount >= 5) {
+  if (newAttemptCount >= 20) {
     // Max attempts reached - mark as error and clear processing_id
     await dbClient.execute(
       `
