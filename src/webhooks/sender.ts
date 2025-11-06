@@ -20,6 +20,7 @@ async function sendCallbackNotification(
       final_status: finalStatus,
       attempt_count: webhook.attempt_count,
       last_response: runLogData,
+      secret: Deno.env.get("API_SECRET"),
     };
 
     await fetch(webhook.callback_url, {

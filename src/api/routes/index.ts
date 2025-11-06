@@ -27,30 +27,21 @@ router.post("/send", async (c) => {
     }
 
     if (body.data?.secret === Deno.env.get("API_SECRET")) {
-      console.log(
-        "INSERT INTO webhooks (send_url, data, status,callback_url) VALUES (?, ?, 'available', ?);",
-        [
-          body.data?.send_url,
-          JSON.stringify(body.data?.data),
-          body.data?.callback_url,
-        ].toString()
-      );
-
-      await Database._instance.client?.query(
+      const result = await Database._instance.client?.execute(
         `INSERT INTO webhooks (send_url, data, status,callback_url) VALUES ('${
           body.data?.send_url
         }', '${JSON.stringify(body.data?.data)}', 'available', '${
           body.data?.callback_url
-        }')`
+        }');`
       );
-      console.log("inserted");
+      c.response.body = {
+        id: result?.lastInsertId,
+      };
     } else {
       (c.response.body = { message: "Not authorized" }),
         (c.response.status = 403);
       return;
     }
-
-    c.response.status = 204;
   } catch (err: unknown) {
     console.log(err);
     c.response.status = 500;
